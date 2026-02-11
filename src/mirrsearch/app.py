@@ -10,8 +10,8 @@ def create_app():
         return "<p>Hello, World!</p>"
 	
     @app.route("/search")
-    def search():
-        return ["Test", "Dummy"]
+    def search(str):
+        return ["Test", "Dummy", str]
 
 
     return app
