@@ -1,19 +1,5 @@
 # PostgreSQL Installation and Launch Guide (macOS with Homebrew)
 
-## Create Virtual Environment
-
-Before setting up PostgreSQL, create a Python virtual environment:
-
-```bash
-python3 -m venv .venv
-```
-
-Activate the virtual environment:
-
-```bash
-source .venv/bin/activate
-```
-
 ## Installation
 
 Install PostgreSQL using Homebrew:
