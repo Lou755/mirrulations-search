@@ -2,7 +2,6 @@ flask
 pylint 
 pytest
 gunicorn
-pytest-cov
 mysql-connector-python
 opensearch-py
 pytest-cov
