@@ -1,6 +1,5 @@
 import os
-from flask import Flask, render_template
-
+from flask import Flask, render_template, request
 
 def create_app():
     # This is needed due to templates being 2 levels up from this file causing flask not to see it.
@@ -18,9 +17,10 @@ def create_app():
     def hello_world():
         return "<p>Hello, World!</p>"
 	
-    @app.route("/search")
+    @app.route("/search/")
     def search():
-        return ["Test", "Dummy"]
+        search_input = request.args.get('str')
+        return ["Test", "Dummy", search_input]
 
 
     return app
