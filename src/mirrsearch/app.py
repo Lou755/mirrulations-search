@@ -1,22 +1,22 @@
 from flask import Flask
-
-import internalLogic
+from mirrsearch.internalLogic import InternalLogic
 
 
 def create_app():
-    app = Flask(name)
-
+    app = Flask(__name__)
+    
     @app.route("/")
     def hello_world():
         return "<p>Hello, World!</p>"
-
+    
     @app.route("/search")
     def search():
-        return internalLogic("sample_database").search("example_query")
-
+        logic = InternalLogic("sample_database")
+        return logic.search("example_query")
+    
     return app
 
 
-if name == 'main':
+if __name__ == '__main__':
     app = create_app()
     app.run(port=8000, debug=True)
