@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
+import psycopg2
 
 
 @dataclass(frozen=True)
 class DBLayer:
     """
-    Dummy DB layer that returns static data.
+    DB layer for connecting to PostgreSQL and returning data.
     """
+    conn: Any
 
     def _items(self) -> List[Dict[str, Any]]:
         return [
@@ -35,4 +37,10 @@ class DBLayer:
         ]
 
 def get_db() -> DBLayer:
-    return DBLayer()
+    conn = psycopg2.connect(
+        host="localhost",
+        dbname="your_db",
+        user="your_user",
+        password="your_password"
+    )
+    return DBLayer(conn)
