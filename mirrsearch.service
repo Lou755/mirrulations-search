@@ -1,0 +1,19 @@
+[Unit]
+Description=Mirrulations-Search
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/home/ec2-user/mirrulations-search
+Environment="PATH=/home/ec2-user/mirrulations-search/.venv/bin"
+Environment="PYTHONPATH=/home/ec2-user/mirrulations-search/src"
+ExecStart=/home/ec2-user/mirrulations-search/.venv/bin/gunicorn \
+    --certfile /etc/letsencrypt/live/dev.mirrulations.org/fullchain.pem \
+    --keyfile /etc/letsencrypt/live/dev.mirrulations.org/privkey.pem \
+    --bind 0.0.0.0:443 \
+    mirrsearch.app:app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

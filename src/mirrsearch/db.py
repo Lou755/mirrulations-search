@@ -46,6 +46,13 @@ def get_postgres_connection() -> DBLayer:
     )
     return DBLayer(conn)
 
+def get_db() -> DBLayer:
+    """
+    Return the default DB layer for the app.
+    Currently uses the in-memory dummy data for local/test usage.
+    """
+    return DBLayer(conn=None)
+
 def get_opensearch_connection() -> OpenSearch:
      client = OpenSearch(
          hosts=[{"host": "localhost", "port": 9200}],
