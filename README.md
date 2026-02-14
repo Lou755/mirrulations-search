@@ -41,4 +41,38 @@ If you are in `src/mirrsearch`, you can run `app.py` directly:
 python app.py
 ```
 
+## Database Testing Guide
 
+## Overview
+This folder contains tests for the Mirrulations database layer:
+
+- `test_db.py` - Unit tests for the DBLayer mock (no database required)
+
+## Setup for Integration Tests
+
+### 1. Install MySQL
+```bash
+# macOS
+brew install mysql
+brew services start mysql
+
+### 2. Install Python dependencies
+```bash
+pip install mysql-connector-python pytest
+```
+
+### 3. Set up the database
+```bash
+# Login to MySQL
+mysql -u root -p
+
+# Run the create.sql script
+mysql -u root -p < create.sql
+```
+
+## Running the Tests
+
+### Run all database tests:
+```bash
+pytest test_db.py -v
+```

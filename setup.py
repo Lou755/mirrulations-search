@@ -1,7 +1,6 @@
-
 from setuptools import setup, find_packages
 
-# Call the setup function with the minium named arguments
+# Call the setup function with the minimum named arguments
 setup(
     # the name of the library (will be listed with pip list)
     name="mirrsearch",
@@ -9,5 +8,16 @@ setup(
     packages=find_packages('src'),
     # The empty key stands for the root package
     # See https://docs.python.org/3/distutils/setupscript.html#listing-whole-packages
-    package_dir={'': 'src'}
+    package_dir={'': 'src'},
+    # Runtime dependencies
+    install_requires=[
+        'flask',
+    ],
+    # Development dependencies
+    extras_require={
+        'dev': [
+            'pytest',
+            'pytest-cov',
+        ]
+    },
 )
