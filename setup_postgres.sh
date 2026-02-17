@@ -2,16 +2,16 @@
 
 DB_NAME="mirrulations"
 
-echo "🚀 Starting PostgreSQL..."
+echo "Starting PostgreSQL..."
 brew services start postgresql
 
-echo "🗑 Dropping database if it exists..."
+echo "Dropping database if it exists..."
 dropdb --if-exists $DB_NAME
 
-echo "📦 Creating database..."
+echo "Creating database..."
 createdb $DB_NAME
 
-echo "🛠 Creating schema and inserting seed data..."
+echo "Creating schema and inserting seed data..."
 
 psql $DB_NAME <<'EOF'
 
@@ -68,6 +68,6 @@ SELECT * FROM document;
 EOF
 
 echo ""
-echo "✅ Database '$DB_NAME' is fully initialized."
+echo "Database '$DB_NAME' is fully initialized."
 echo "Connect with:"
 echo "psql $DB_NAME"
