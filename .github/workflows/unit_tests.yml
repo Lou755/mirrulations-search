@@ -1,0 +1,17 @@
+name: Unit Tests
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Repo & Environment
+        uses: ./.github/actions/setup_venv
+
+      - name: Execute Unit Tests
+        run: |
+          PYTHONPATH=src pytest tests/

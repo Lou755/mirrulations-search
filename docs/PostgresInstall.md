@@ -8,12 +8,6 @@ Install PostgreSQL using Homebrew:
 brew install postgresql
 ```
 
-Or for a specific version:
-
-```bash
-brew install postgresql@15
-```
-
 ## Launching PostgreSQL
 
 ### Start PostgreSQL

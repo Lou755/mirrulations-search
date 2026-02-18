@@ -52,9 +52,9 @@ def test_items_have_required_fields():
     """Test that each item has all required fields"""
     db = DBLayer()
     items = db._items()
-    
+
     required_fields = ["docket_id", "title", "cfrPart", "agency_id", "document_type"]
-    
+
     for item in items:
         for field in required_fields:
             assert field in item, f"Item missing required field: {field}"
@@ -64,7 +64,7 @@ def test_items_field_types():
     """Test that fields in items have correct types"""
     db = DBLayer()
     items = db._items()
-    
+
     for item in items:
         assert isinstance(item["docket_id"], str)
         assert isinstance(item["title"], str)
@@ -77,12 +77,12 @@ def test_items_content():
     """Test specific content of the items"""
     db = DBLayer()
     items = db._items()
-    
+
     # Check first item
     assert items[0]["docket_id"] == "CMS-2025-0240"
     assert items[0]["agency_id"] == "CMS"
     assert items[0]["document_type"] == "Proposed Rule"
-    
+
     # Check second item
     assert items[1]["docket_id"] == "CMS-2025-0240"
     assert items[1]["agency_id"] == "CMS"
@@ -114,7 +114,7 @@ def test_search_is_case_insensitive(db):
     result_upper = db.search("CMS")
     result_lower = db.search("cms")
     result_mixed = db.search("Cms")
-    
+
     assert len(result_upper) == len(result_lower) == len(result_mixed)
     assert result_upper == result_lower == result_mixed
 
@@ -123,7 +123,7 @@ def test_search_strips_whitespace(db):
     """Test that search strips leading/trailing whitespace"""
     result_normal = db.search("CMS")
     result_spaces = db.search("  CMS  ")
-    
+
     assert result_normal == result_spaces
 
 
@@ -159,7 +159,7 @@ def test_search_specific_terms(db):
     # Search for "Prospective Payment System"
     result = db.search("Prospective Payment System")
     assert len(result) >= 1
-    
+
     # Search for "Quality Incentive"
     result = db.search("Quality Incentive")
     assert len(result) >= 1
@@ -174,7 +174,7 @@ def test_search_multiple_words(db):
 def test_search_returns_correct_structure(db):
     """Test that search results have correct structure"""
     result = db.search("CMS")
-    
+
     for item in result:
         assert isinstance(item, dict)
         assert "docket_id" in item
@@ -188,12 +188,12 @@ def test_search_does_not_modify_original_data(db):
     """Test that search doesn't modify the original data"""
     original_items = db._items()
     original_count = len(original_items)
-    
+
     # Perform multiple searches
     db.search("CMS")
     db.search("Medicare")
     db.search("xyz")
-    
+
     # Check data is unchanged
     assert len(db._items()) == original_count
     assert db._items() == original_items

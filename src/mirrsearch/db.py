@@ -1,8 +1,8 @@
+#from opensearchpy import OpenSearch 
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import psycopg2
-from opensearchpy import OpenSearch 
-
+from psycopg2.extras import RealDictCursor
 
 @dataclass(frozen=True)
 class DBLayer:
@@ -11,52 +11,89 @@ class DBLayer:
     """
     conn: Any
 
-    def _items(self) -> List[Dict[str, Any]]:
-        return [
-            {
-                "docket_id": "CMS-2025-0240",
-                "title": "CY 2026 Changes to the End-Stage Renal Disease (ESRD) Prospective Payment System and Quality Incentive Program. CMS1830-P Display",
-                "cfrPart": "42 CFR Parts 413 and 512",
-                "agency_id": "CMS",
-                "document_type": "Proposed Rule",
-            },
-            {
-                "docket_id": "CMS-2025-0240",
-                "title": "Medicare Program: End-Stage Renal Disease Prospective Payment System, Payment for Renal Dialysis Services Furnished to Individuals with Acute Kidney Injury, End-Stage Renal Disease Quality Incentive Program, and End-Stage Renal Disease Treatment Choices Model",
-                "cfrPart": "42 CFR Parts 413 and 512",
-                "agency_id": "CMS",
-                "document_type": "Proposed Rule",
-            }
-        ]
-
     def search(self, query: str) -> List[Dict[str, Any]]:
-        # Query that matches title or docket_id in the dummy data and returns them
-        q = query.lower().strip()
-        return [
-            item for item in self._items()
-            if q in item["title"].lower() or q in item["docket_id"].lower()
-        ]
+        """
+        Search documents by query string in title or docket_id.
+        """
+        q = f"%{query.lower()}%"
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    docket_id,
+                    title,
+                    cfr_part as "cfrPart",
+                    agency_id,
+                    document_type,
+                    authors,
+                    comment_start_date,
+                    comment_end_date,
+                    posted_date,
+                    modified_date
+                FROM document
+                WHERE LOWER(title) LIKE %s OR LOWER(docket_id) LIKE %s
+            """, (q, q))
+            return [dict(row) for row in cur.fetchall()]
+
+    def get_all(self) -> List[Dict[str, Any]]:
+        """
+        Get all documents from the database.
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    docket_id,
+                    title,
+                    cfr_part as "cfrPart",
+                    agency_id,
+                    document_type,
+                    authors,
+                    comment_start_date,
+                    comment_end_date,
+                    posted_date,
+                    modified_date
+                FROM document
+            """)
+            return [dict(row) for row in cur.fetchall()]
+
 
 def get_postgres_connection() -> DBLayer:
+    """
+    Connect to the PostgreSQL database in dev environment.
+    """
     conn = psycopg2.connect(
         host="localhost",
-        dbname="your_db",
-        user="your_user",
-        password="your_password"
+        dbname="mirrulations"
     )
-    return DBLayer(conn)
+    return DBLayer(conn=conn)
+
+
 
 def get_db() -> DBLayer:
     """
-    Return the default DB layer for the app.
-    Currently uses the in-memory dummy data for local/test usage.
+    Return the DB layer connected to PostgreSQL.
     """
-    return DBLayer(conn=None)
+    return get_postgres_connection()
 
-def get_opensearch_connection() -> OpenSearch:
-     client = OpenSearch(
-         hosts=[{"host": "localhost", "port": 9200}],
-         use_ssl=False,
-         verify_certs=False,
-     )
-     return client
+if __name__ == "__main__":
+    try:
+        db = get_db()
+        print("Database connected successfully!")
+        print("\nDocuments in database:")
+        
+        docs = db.get_all()
+        for doc in docs:
+            print(f"\n  Docket ID: {doc['docket_id']}")
+            print(f"  Title: {doc['title']}")
+            print(f"  Agency: {doc['agency_id']}")
+            print(f"  Type: {doc['document_type']}")
+            
+    except Exception as e:
+        print(f"Connection failed: {e}")
+
+#def get_opensearch_connection() -> OpenSearch:
+    #client = OpenSearch(
+     #    hosts=[{"host": "localhost", "port": 9200}],
+      #   use_ssl=False,
+       #  verify_certs=False,
+   #  )
+    # return client

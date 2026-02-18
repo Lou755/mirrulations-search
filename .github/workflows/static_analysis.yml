@@ -1,0 +1,16 @@
+name: Static Analysis
+on: [push, pull_request]
+
+jobs:
+  static-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Repo & Environment
+        uses: ./.github/actions/setup_venv
+
+      - name: Execute Static Analysis
+        run: pylint src/mirrsearch/ tests/

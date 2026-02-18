@@ -1,0 +1,16 @@
+name: "Setup Environment"
+description: "Setup the environment for the project"
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Python Version
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.12
+
+    - name: Install dependencies and module
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -e .
