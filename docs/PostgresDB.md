@@ -1,8 +1,8 @@
 # Postgres DB Setup
 
-## To start postgresql, create and initialize the database, as well as populate the database:
+## To start postgresql and create, initialize, and populate the database, from the root directory, run:
 ```bash
-./setup_postgres.sh
+./db/setup_postgres.sh
 ```
 
 ## To connect to DB:
