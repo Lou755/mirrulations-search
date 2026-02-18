@@ -9,30 +9,29 @@ def create_app():
     templates_dir = os.path.join(project_root, 'templates')
     static_dir = os.path.join(project_root, 'static')
 
-    app = Flask(__name__, template_folder=templates_dir, static_folder=static_dir)
+    flask_app = Flask(__name__, template_folder=templates_dir, static_folder=static_dir)
 
-    @app.route("/")
+    @flask_app.route("/")
     def home():
         return render_template('index.html')
 
-    @app.route("/search/")
+    @flask_app.route("/search/")
     def search():
         # Get the search query from URL parameters
         search_input = request.args.get('str')
-        
+
         # If no query parameter provided, use default
         if search_input is None:
             search_input = "example_query"
-        
+
         # Use InternalLogic to process the search
         logic = internalLogic("sample_database")
         results = logic.search(search_input)
         return jsonify(results)
-    
-    return app
+
+    return flask_app
 
 app = create_app()
 
 if __name__ == '__main__':
     app.run(port=80, debug=True)
-
