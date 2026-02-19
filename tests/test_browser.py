@@ -9,6 +9,15 @@ from selenium.webdriver.chrome.options import Options
 
 @pytest.fixture(name="driver")
 def fixture_driver():
+
+     # Start Flask app
+    process = subprocess.Popen(
+    ["flask", "--app", "src.mirrsearch.app", "run", "--port", "5001", "--no-reload"]
+    )
+
+    # Give server time to start
+    time.sleep(5)
+    
     # Needed to work with Github CI
     options = Options()
     options.add_argument("--headless=new")
@@ -19,17 +28,13 @@ def fixture_driver():
 
     set_up_driver.get('http://127.0.0.1:5001')
 
-    return set_up_driver
+    # This allows the test to run, and then clean up the driver and process after
+    yield set_up_driver
+
+    set_up_driver.quit()
+    process.terminate()
 
 def test_browser_search(driver):
-
-    # Start Flask app
-    process = subprocess.Popen(
-    ["flask", "--app", "src.mirrsearch.app", "run", "--port", "5001", "--no-reload"]
-    )
-
-    # Give server time to start
-    time.sleep(5)
 
     search_terms = ['test', 'esrd']
 
@@ -62,6 +67,3 @@ def test_browser_search(driver):
     ]
 
         assert json.loads(output.text) == expected
-
-    driver.quit()
-    process.terminate()
