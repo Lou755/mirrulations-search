@@ -1,6 +1,6 @@
 import os
 from flask import Flask, render_template, request, jsonify
-from mirrsearch.internalLogic import internalLogic
+from mirrsearch.internal_logic import InternalLogic
 
 
 def create_app():
@@ -25,7 +25,7 @@ def create_app():
             search_input = "example_query"
 
         # Use InternalLogic to process the search
-        logic = internalLogic("sample_database")
+        logic = InternalLogic("sample_database")
         results = logic.search(search_input)
         return jsonify(results)
 
