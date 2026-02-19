@@ -59,16 +59,16 @@
       width:min(1200px, calc(100% - 48px));
       margin:22px auto 28px;
       display:grid;
-      grid-template-columns: 320px 1fr;
-      gap:18px;
+      grid-template-columns: 460px 1fr;
+      gap: 22px;
       align-items:start;
     }
 
     aside{
-      background:var(--card);
-      border:1px solid var(--border);
+      background:linear-gradient(180deg, #ffffff 0%, #fbfbff 100%);
+      border:1px solid rgba(90, 95, 230, 0.25);
       border-radius:18px;
-      box-shadow:var(--shadow);
+      box-shadow: 0 16px 40px rgba(20, 24, 40, .10);
       padding:14px;
       position:sticky;
       top:16px;
@@ -79,13 +79,13 @@
       display:flex;
       align-items:center;
       justify-content:space-between;
-      padding:6px 6px 10px;
+      padding:10px 10px 12px;
       border-bottom:1px solid var(--border);
       margin-bottom:10px;
     }
     .aside-title h2{
       margin:0;
-      font-size:16px;
+      font-size:18px;
       letter-spacing:.2px;
     }
 
@@ -159,11 +159,28 @@
     .check input{transform:translateY(1px)}
 
     .mini-actions{
-      display:flex;
-      gap:10px;
-      padding:12px 6px 0;
+        position: sticky;
+        bottom: 0;
+        background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 20%, #fff 100%);
+        padding: 14px 6px 10px;
+        margin-top: 10px;
+        border-top: 1px solid var(--border);
     }
-    .mini-actions .btn{height:40px; border-radius:12px;}
+
+    .mini-actions .btn.primary{
+        flex: 1;
+        height: 44px;
+    }
+
+    .mini-actions .btn.ghost{
+        width: 90px;
+    }
+
+    .mini-actions{
+        display:flex;
+        gap:10px;
+    }
+
 
     /* Agency list */
     .agency-search{
