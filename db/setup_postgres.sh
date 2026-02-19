@@ -5,6 +5,8 @@ DB_NAME="mirrulations"
 echo "Starting PostgreSQL..."
 brew services start postgresql
 
+#TODO: Change so database doesn't get dropped when prod ready.
+
 echo "Dropping database if it exists..."
 dropdb --if-exists $DB_NAME
 
