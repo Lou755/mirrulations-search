@@ -217,4 +217,3 @@ def test_search_with_parentheses(db):
     """Test search with parentheses in query"""
     result = db.search("(ESRD)")
     assert len(result) >= 1
-    
