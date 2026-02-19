@@ -34,7 +34,13 @@ def test_browser_search():
         if search_term not in ['esrd']:
             expected = '''[]'''
         else:
-            expected = '''[{"agency_id":"CMS","cfrPart":"42 CFR Parts 413 and 512","docket_id":"CMS-2025-0240","document_type":"Proposed Rule","title":"CY 2026 Changes to the End-Stage Renal Disease (ESRD) Prospective Payment System and Quality Incentive Program. CMS1830-P Display"}]'''
+            expected = '''[{"agency_id":"CMS",
+            "cfrPart":"42 CFR Parts 413 and 512",
+            "docket_id":"CMS-2025-0240",
+            "document_type":"Proposed Rule",
+            "title":"CY 2026 Changes to the End-Stage Renal Disease 
+            (ESRD) Prospective Payment System and Quality Incentive Program. 
+            CMS1830-P Display"}]'''
 
         assert output.text == expected
 
