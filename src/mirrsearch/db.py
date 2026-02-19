@@ -1,7 +1,15 @@
 from dataclasses import dataclass
 from typing import List, Dict, Any
+import os
 import psycopg2
 from opensearchpy import OpenSearch
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    LOAD_DOTENV = None
+else:
+    LOAD_DOTENV = load_dotenv
 
 
 @dataclass(frozen=True)
@@ -40,19 +48,48 @@ class DBLayer:
         ]
 
     def search(self, query: str) -> List[Dict[str, Any]]:
-        # Query that matches title or docket_id in the dummy data and returns them
-        q = query.lower().strip()
+        q = (query or "").strip()
+
+        # Use dummy data if no connection
+        if self.conn is None:
+            q = q.lower()
+            return [
+                item for item in self._items()
+                if q in item["title"].lower() or q in item["docket_id"].lower()
+            ]
+
+        # Use PostgreSQL if connection exists
+        sql = """
+            SELECT docket_id, title, cfr_part, agency_id, document_type
+            FROM document
+            WHERE docket_id ILIKE %s OR title ILIKE %s
+        """
+        params = (f"%{q}%", f"%{q}%") if q else ("%%", "%%")
+
+        with self.conn.cursor() as cur:
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+
         return [
-            item for item in self._items()
-            if q in item["title"].lower() or q in item["docket_id"].lower()
+            {
+                "docket_id": row[0],
+                "title": row[1],
+                "cfrPart": row[2],
+                "agency_id": row[3],
+                "document_type": row[4],
+            }
+            for row in rows
         ]
 
 def get_postgres_connection() -> DBLayer:
+    if LOAD_DOTENV is not None:
+        LOAD_DOTENV()
     conn = psycopg2.connect(
-        host="localhost",
-        dbname="your_db",
-        user="your_user",
-        password="your_password"
+        host=os.getenv("DB_HOST", "localhost"),
+        port=os.getenv("DB_PORT", "5432"),
+        database=os.getenv("DB_NAME", "your_db"),
+        user=os.getenv("DB_USER", "your_user"),
+        password=os.getenv("DB_PASSWORD", "your_password")
     )
     return DBLayer(conn)
 
@@ -62,7 +99,12 @@ def get_db() -> DBLayer:
     Return the default DB layer for the app.
     Currently uses the in-memory dummy data for local/test usage.
     """
-    return DBLayer(conn=None)
+    if LOAD_DOTENV is not None:
+        LOAD_DOTENV()
+    use_postgres = os.getenv("USE_POSTGRES", "").lower() in {"1", "true", "yes", "on"}
+    if use_postgres:
+        return get_postgres_connection()
+    return DBLayer()
 
 
 def get_opensearch_connection() -> OpenSearch:

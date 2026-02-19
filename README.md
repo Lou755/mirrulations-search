@@ -43,6 +43,25 @@ If you are in `src/mirrsearch`, you can run `app.py` directly:
 python app.py
 ```
 
+## Run with Gunicorn using the Postgres database
+You must run ./db/setup_postgres.sh before to have created the actual database.
+This also requires python-dotenv to be intalled which is now added in the requirements.txt file.
+Or run pip install python-dotenv in your .venv.
+
+Create a `.env` file in the root directory with the following variables:
+```bash
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=mirrulations
+DB_USER=your_macOS_username (You can find this by doing `whoami` in your terminal)
+DB_PASSWORD=
+USE_POSTGRES=true
+```
+Then run:
+```bash
+./dev_up.sh
+```
+
 ## Database Testing Guide
 
 ## Overview
