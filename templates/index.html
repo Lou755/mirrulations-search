@@ -314,10 +314,7 @@
 </head>
 
 <body>
-  <header>
-    <div class="brand">Mirrulations</div>
-    <button class="btn primary">Log Out</button>
-  </header>
+
 
   <div class="app">
     <aside>
@@ -385,13 +382,6 @@
     <main>
       <div class="hero">
         <h1>Mirrulation Explorer</h1>
-        <div class="tabs">
-          <a class="tab" href="#">Topic1</a>
-          <a class="tab" href="#">Topic2</a>
-          <a class="tab" href="#">Topic3</a>
-          <a class="tab" href="#">Topic4</a>
-          <a class="tab" href="#">Topic5</a>
-        </div>
       </div>
 
       <div class="search-card">
@@ -421,17 +411,12 @@
         </div>
       </div>
 
-      <div class="results">
-        <div>Demo output (no backend):</div>
-        <div class="box" id="debugBox">Click “Apply” in the sidebar or hit Search to see the filters collected.</div>
-      </div>
-
       <div class="download-wrap"></div>
     </main>
   </div>
 
   <script>
-    // Demo data: "Top agencies" 
+    // Demo data: "Top agencies"
     const TOP_AGENCIES = [
       { code: "EPA", name: "Environmental Protection Agency" },
       { code: "DOT", name: "Department of Transportation" },
@@ -547,7 +532,7 @@
       updateActiveCount();
     }
 
-    // Checkbox sections 
+    // Checkbox sections
     document.querySelectorAll(".flt").forEach(cb => {
       cb.addEventListener("change", () => {
         const key = cb.dataset.key;
