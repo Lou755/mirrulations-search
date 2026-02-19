@@ -89,3 +89,4 @@ def test_search_with_different_query_parameters(client):
     assert isinstance(data3, list)
     assert len(data3) > 0
     assert all(item['agency_id'] == 'CMS' for item in data3)
+    
