@@ -47,39 +47,47 @@ class DBLayer:
             }
         ]
 
-    def search(self, query: str) -> List[Dict[str, Any]]:
+    def search(self, query: str, filter_param: str = None) -> List[Dict[str, Any]]:
         q = (query or "").strip()
 
-        # Use dummy data if no connection
         if self.conn is None:
             q = q.lower()
-            return [
+            results = [
                 item for item in self._items()
                 if q in item["title"].lower() or q in item["docket_id"].lower()
             ]
+            if filter_param:
+                results = [
+                    item for item in results
+                     if item["document_type"].lower() == filter_param.lower()
+                ]
+            return results
+        else:
+            sql = """
+                SELECT docket_id, title, cfr_part, agency_id, document_type
+                FROM document
+                WHERE (docket_id ILIKE %s OR title ILIKE %s)
+            """
+            params = [f"%{q}%", f"%{q}%"] if q else ["%%", "%%"]
 
-        # Use PostgreSQL if connection exists
-        sql = """
-            SELECT docket_id, title, cfr_part, agency_id, document_type
-            FROM document
-            WHERE docket_id ILIKE %s OR title ILIKE %s
-        """
-        params = (f"%{q}%", f"%{q}%") if q else ("%%", "%%")
+            if filter_param:
+                sql += " AND document_type = %s"
+                params.append(filter_param)
 
-        with self.conn.cursor() as cur:
-            cur.execute(sql, params)
-            rows = cur.fetchall()
+            with self.conn.cursor() as cur:
+                cur.execute(sql, params)
+                rows = cur.fetchall()
 
-        return [
-            {
-                "docket_id": row[0],
-                "title": row[1],
-                "cfrPart": row[2],
-                "agency_id": row[3],
-                "document_type": row[4],
-            }
-            for row in rows
-        ]
+            return [
+                {
+                    "docket_id": row[0],
+                    "title": row[1],
+                    "cfrPart": row[2],
+                    "agency_id": row[3],
+                    "document_type": row[4],
+                }
+                for row in rows
+            ]
 
 def get_postgres_connection() -> DBLayer:
     if LOAD_DOTENV is not None:

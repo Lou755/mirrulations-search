@@ -17,16 +17,14 @@ def create_app():
 
     @flask_app.route("/search/")
     def search():
-        # Get the search query from URL parameters
         search_input = request.args.get('str')
+        filter_param = request.args.get('filter')  # e.g. /search/?str=renal&filter=Proposed Rule
 
-        # If no query parameter provided, use default
         if search_input is None:
-            search_input = "example_query"
+           search_input = "example_query"
 
-        # Use InternalLogic to process the search
         logic = InternalLogic("sample_database")
-        results = logic.search(search_input)
+        results = logic.search(search_input, filter_param)
         return jsonify(results)
 
     return flask_app
