@@ -3,6 +3,7 @@ Tests for the database layer (db.py)
 """
 # pylint: disable=redefined-outer-name,protected-access
 import pytest
+import mirrsearch.db as db_module
 from mirrsearch.db import DBLayer, get_db
 
 
@@ -198,6 +199,130 @@ def test_search_does_not_modify_original_data(db):
     # Check data is unchanged
     assert len(db._items()) == original_count
     assert db._items() == original_items
+
+
+class _FakeCursor:
+    def __init__(self, rows):
+        self._rows = rows
+        self.executed = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def execute(self, sql, params):
+        self.executed = (sql, params)
+
+    def fetchall(self):
+        return self._rows
+
+    def close(self):
+        return None
+
+
+class _FakeConn:
+    def __init__(self, rows):
+        self.cursor_obj = _FakeCursor(rows)
+
+    def cursor(self):
+        return self.cursor_obj
+
+    def close(self):
+        return None
+
+
+def test_search_postgres_branch_without_filter():
+    rows = [("D1", "Title One", "CFR 1", "AG", "Rule")]
+    db = DBLayer(conn=_FakeConn(rows))
+
+    results = db.search("abc")
+
+    assert results == [
+        {
+            "docket_id": "D1",
+            "title": "Title One",
+            "cfrPart": "CFR 1",
+            "agency_id": "AG",
+            "document_type": "Rule",
+        }
+    ]
+    sql, params = db.conn.cursor_obj.executed
+    assert "document_type = %s" not in sql
+    assert params == ["%abc%", "%abc%"]
+
+
+def test_search_postgres_branch_with_filter():
+    rows = [("D2", "Title Two", "CFR 2", "AG2", "Proposed Rule")]
+    db = DBLayer(conn=_FakeConn(rows))
+
+    _ = db.search("", "Proposed Rule")
+
+    sql, params = db.conn.cursor_obj.executed
+    assert "document_type = %s" in sql
+    assert params == ["%%", "%%", "Proposed Rule"]
+
+
+def test_get_postgres_connection_uses_env_and_dotenv(monkeypatch):
+    called = {"dotenv": False}
+
+    def fake_load():
+        called["dotenv"] = True
+
+    captured = {}
+
+    def fake_connect(**kwargs):
+        captured.update(kwargs)
+        return "conn"
+
+    monkeypatch.setattr(db_module, "LOAD_DOTENV", fake_load)
+    monkeypatch.setattr(db_module.psycopg2, "connect", fake_connect)
+    monkeypatch.setenv("DB_HOST", "dbhost")
+    monkeypatch.setenv("DB_PORT", "5433")
+    monkeypatch.setenv("DB_NAME", "dbname")
+    monkeypatch.setenv("DB_USER", "dbuser")
+    monkeypatch.setenv("DB_PASSWORD", "dbpass")
+
+    db = db_module.get_postgres_connection()
+
+    assert isinstance(db, DBLayer)
+    assert db.conn == "conn"
+    assert called["dotenv"] is True
+    assert captured == {
+        "host": "dbhost",
+        "port": "5433",
+        "database": "dbname",
+        "user": "dbuser",
+        "password": "dbpass",
+    }
+
+
+def test_get_db_uses_postgres_when_env_set(monkeypatch):
+    sentinel = DBLayer(conn="conn")
+    monkeypatch.setattr(db_module, "get_postgres_connection", lambda: sentinel)
+    monkeypatch.setenv("USE_POSTGRES", "true")
+
+    db = db_module.get_db()
+
+    assert db is sentinel
+
+
+def test_get_opensearch_connection(monkeypatch):
+    captured = {}
+
+    def fake_opensearch(**kwargs):
+        captured.update(kwargs)
+        return "client"
+
+    monkeypatch.setattr(db_module, "OpenSearch", fake_opensearch)
+
+    client = db_module.get_opensearch_connection()
+
+    assert client == "client"
+    assert captured["hosts"] == [{"host": "localhost", "port": 9200}]
+    assert captured["use_ssl"] is False
+    assert captured["verify_certs"] is False
 
 
 # Edge case tests
