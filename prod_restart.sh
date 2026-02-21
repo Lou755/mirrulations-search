@@ -1,6 +1,2 @@
-#! /bin/bash
-sudo systemctl daemon-reload
-sudo systemctl enable mirrsearch
 sudo systemctl restart mirrsearch
-
 sudo systemctl status mirrsearch --no-pager
