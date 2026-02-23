@@ -9,7 +9,7 @@
 
 <body>
   <div class="app">
-    <aside>
+    <aside class="fade-right fade-delay-5">
       <div class="aside-title">
         <h2>Advanced Search</h2>
         <span class="pill" id="activeCount">0 active</span>
@@ -81,11 +81,11 @@
 
     <main>
       <div class="hero">
-        <h1>Mirrulation Explorer</h1>
+        <h1 class="fade-down mirrulations-title">Mirrulation Explorer</h1>
       </div>
 
-      <div class="search-card">
-        <div class="search-row">
+      <div class="fade-down fade-delay-3 search-card">
+        <div class="search-row ">
           <input id="q" placeholder="Enter search term" />
           <button class="search-go" id="searchBtn" aria-label="Search">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -111,8 +111,86 @@
         </div>
       </div>
 
-      <div class="download-wrap"></div>
+      <div class="download-wrap">
+        <div class="results">
+
+  <div class="result-card fade-down fade-delay-3">
+    <div class="card-header">
+      <h3>Example Display Of Card</h3>
+      <span class="pill success">Final</span>
+    </div>
+
+    <div class="card-meta">
+      <span><strong>Agency:</strong> EPA</span>
+      <span><strong>CFR:</strong> 40 CFR 122.26</span>
+      <span><strong>Date:</strong> March 12, 2026</span>
+      <span><strong>Status:</strong> Open</span>
+    </div>
+
+    <p class="card-summary">
+      This rule updates national emission standards for hazardous air pollutants
+      to improve environmental protection and compliance monitoring.
+    </p>
+
+    <div class="card-actions">
+      <button class="btn outline">View Details</button>
+      <button class="btn primary">Download PDF</button>
+    </div>
+  </div>
+    <div class="result-card fade-down fade-delay-3">
+    <div class="card-header">
+      <h3>Example Display Of Card</h3>
+      <span class="pill success">Final</span>
+    </div>
+
+    <div class="card-meta">
+      <span><strong>Agency:</strong> EPA</span>
+      <span><strong>CFR:</strong> 40 CFR 122.26</span>
+      <span><strong>Date:</strong> March 12, 2026</span>
+      <span><strong>Status:</strong> Open</span>
+    </div>
+
+    <p class="card-summary">
+      This rule updates national emission standards for hazardous air pollutants
+      to improve environmental protection and compliance monitoring.
+    </p>
+
+    <div class="card-actions">
+      <button class="btn outline">View Details</button>
+      <button class="btn primary">Download PDF</button>
+    </div>
+  </div>
+
+  <div class="result-card fade-down fade-delay-3">
+    <div class="card-header">
+      <h3>Example Display Of Card</h3>
+      <span class="pill success">Final</span>
+    </div>
+
+    <div class="card-meta">
+      <span><strong>Agency:</strong> EPA</span>
+      <span><strong>CFR:</strong> 40 CFR 122.26</span>
+      <span><strong>Date:</strong> March 12, 2026</span>
+      <span><strong>Status:</strong> Open</span>
+    </div>
+
+    <p class="card-summary">
+      This rule updates national emission standards for hazardous air pollutants
+      to improve environmental protection and compliance monitoring.
+    </p>
+
+    <div class="card-actions">
+      <button class="btn outline">View Details</button>
+      <button class="btn primary">Download PDF</button>
+    </div>
+  </div>
+
+
+
+</div>
+      </div>
     </main>
+
   </div>
 
   <script src="script.js"></script>
