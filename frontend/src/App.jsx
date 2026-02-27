@@ -43,8 +43,7 @@ const activeCount =
 const runSearch = async () => {
 const firstAgency = Array.from(selectedAgencies)[0] || ""
 const data = await searchDockets(query, docType, firstAgency)
-const resultsArray = Object.values(data || {}).flat();   
-    setResults([resultsArray]);
+    setResults(data);
   };
 const advancedPayload = {
     yearFrom,
