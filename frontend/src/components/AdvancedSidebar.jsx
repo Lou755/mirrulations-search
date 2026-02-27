@@ -41,12 +41,15 @@ export default function AdvancedSidebar({
   setDocType,
   status,
   setStatus,
+  selectedCfrParts,
+  setSelectedCfrParts,
   clearAdvanced,
   applyAdvanced,
   activeCount,
 }) {
   const docTypes = ["Proposed Rule", "Final Rule", "Notice"];
   const statuses = ["Open", "Closed", "Pending"];
+  const cfrParts = Array.from({ length: 50 }, (_, i) => i + 1);
 
   return (
     <motion.aside className="sidebar"
@@ -152,6 +155,28 @@ export default function AdvancedSidebar({
                   <span>
                     {a.code} — {a.name}
                   </span>
+                </label>
+              ))}
+            </div>
+          </CollapsibleSection>
+
+          {/* CFR Part */}
+          <CollapsibleSection title="CFR Part">
+            <div className="agencyListStatic">
+              {cfrParts.map((part) => (
+                <label key={part} className="check">
+                  <input
+                    type="checkbox"
+                    checked={selectedCfrParts.has(part)}
+                    onChange={() =>
+                      setSelectedCfrParts(
+                        selectedCfrParts.has(part)
+                          ? new Set()
+                          : new Set([part])
+                      )
+                    }
+                  />
+                  <span>Part {part}</span>
                 </label>
               ))}
             </div>

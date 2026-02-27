@@ -13,59 +13,38 @@ dropdb --if-exists $DB_NAME
 echo "Creating database..."
 createdb $DB_NAME
 
-echo "Creating schema and inserting seed data..."
+echo "Creating schema..."
+psql -d $DB_NAME -f db/schema-postgres.sql
 
+echo "Inserting seed data..."
 psql $DB_NAME <<'EOF'
 
--- Enable expanded display
-\x
-
--- =========================
--- Create document table
--- =========================
-CREATE TABLE document (
-    docket_id TEXT PRIMARY KEY,
-    title TEXT,
-    cfr_part TEXT,
-    agency_id TEXT,
-    document_type TEXT,
-    authors TEXT,
-    comment_start_date DATE,
-    comment_end_date DATE,
-    posted_date TIMESTAMP,
-    modified_date TIMESTAMP
-);
-
--- =========================
--- Insert sample row
--- =========================
-INSERT INTO document (
+INSERT INTO documents (
+    document_id,
     docket_id,
-    title,
-    cfr_part,
+    document_api_link,
     agency_id,
     document_type,
-    authors,
-    comment_start_date,
-    comment_end_date,
+    modify_date,
     posted_date,
-    modified_date
+    document_title,
+    comment_start_date,
+    comment_end_date
 )
 VALUES (
+    'CMS-2025-0242-0001',
     'CMS-2025-0242',
-    'ESRD Treatment Choices Model Updates',
-    '42 CFR Parts 413 and 512',
+    'https://api.regulations.gov/v4/documents/CMS-2025-0242-0001',
     'CMS',
     'Proposed Rule',
-    'CMS Innovation Center',
-    '2025-03-01',
-    '2025-05-01',
-    '2025-02-10 10:15:00',
-    '2025-02-12 11:20:00'
+    '2025-02-12 11:20:00+00',
+    '2025-02-10 10:15:00+00',
+    'ESRD Treatment Choices Model Updates',
+    '2025-03-01 00:00:00+00',
+    '2025-05-01 00:00:00+00'
 );
 
--- Show inserted data
-SELECT * FROM document;
+SELECT * FROM documents;
 
 EOF
 

@@ -30,24 +30,25 @@ class DBLayer:
             return []
 
         sql = """
-            SELECT docket_id, title, cfr_part, agency_id, document_type
-            FROM document
-            WHERE (docket_id ILIKE %s OR title ILIKE %s)
+            SELECT d.docket_id, d.document_title, c.cfrpart, d.agency_id, d.document_type
+            FROM documents d
+            LEFT JOIN cfrparts c ON d.document_id = c.document_id
+            WHERE (d.docket_id ILIKE %s OR d.document_title ILIKE %s)
         """
         params = ([f"%{(query or '').strip().lower()}%"] * 2
                   if (query or "").strip()
                   else ["%%", "%%"])
 
         if document_type_param:
-            sql += " AND document_type = %s"
+            sql += " AND d.document_type = %s"
             params.append(document_type_param)
 
         if cfr_part_param:
-            sql += " AND cfr_part = %s"
+            sql += " AND c.cfrpart = %s"
             params.append(cfr_part_param)
 
         if agency:
-            sql += " AND agency_id ILIKE %s"
+            sql += " AND d.agency_id ILIKE %s"
             params.append(f"%{agency}%")
 
         with self.conn.cursor() as cur:
