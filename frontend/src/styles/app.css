@@ -333,3 +333,42 @@
     margin-top: 12px;
     line-height: 1.5;
   }
+  
+  /* Header row */
+.result-card-header{
+	display:flex;
+	justify-content:space-between;
+	align-items:flex-start;
+	gap: 12px;
+  }
+  
+  /* Bubble container */
+  .result-bubbles{
+	display:flex;
+	gap:8px;
+	flex-wrap:wrap;
+  }
+  
+  /* Bubble base */
+  .bubble{
+	font-size: 11px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-weight: 700;
+	border: 1px solid;
+	white-space: nowrap;
+  }
+  
+  /* Document type */
+  .bubbleDoc{
+	background: rgba(90,95,230,0.10);
+	border-color: rgba(90,95,230,0.30);
+	color: #3f44c9;
+  }
+  
+  /* Status */
+  .bubbleStatus{
+	background: rgba(16,185,129,0.12);
+	border-color: rgba(16,185,129,0.30);
+	color: #047857;
+  }
