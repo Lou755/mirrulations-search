@@ -618,7 +618,7 @@ INSERT INTO documents(
 ) VALUES (
     'CMS-2025-0240-0001',
     'CMS-2025-0240',
-    "https://api.regulations.gov/v4/documents/CMS-2025-0240-0001",
+    'https://api.regulations.gov/v4/documents/CMS-2025-0240-0001',
     NULL,
     NULL,
     'CMS',
