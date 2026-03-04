@@ -186,7 +186,7 @@ def ensure_table_exists(conn):
             id          SERIAL PRIMARY KEY,
             docket_id   TEXT        NOT NULL,
             cfr_title   INTEGER     NOT NULL,
-            cfr_section INTEGER     NOT NULL,
+            cfr_section INTEGER     NOT NULL
         );
     """).format(table=sql.Identifier(TABLE_NAME))
     with conn.cursor() as cur:
