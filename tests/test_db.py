@@ -879,3 +879,111 @@ def test_get_docket_ids_matching_filters():
         agency = [all_dockets[0]["agency_id"]]
         result = db.get_docket_ids_matching_filters(docket_ids, agency=agency)
         assert isinstance(result, list)
+
+def test_get_docket_ids_matching_filters_no_conn_returns_empty():
+    """No DB connection should return empty list immediately"""
+    db = DBLayer()
+    assert db.get_docket_ids_matching_filters(["D1", "D2"]) == []
+
+
+def test_get_docket_ids_matching_filters_empty_ids_returns_empty():
+    """Empty docket list should short-circuit"""
+    db = DBLayer(conn=_FakeConn([]))
+    assert db.get_docket_ids_matching_filters([]) == []
+
+
+def test_get_docket_ids_matching_filters_basic_query(monkeypatch):
+    """Basic query with only docket_ids returns fetched rows"""
+
+    db = DBLayer(conn=_FakeConn([]))
+
+    # patch fetchall result
+    db.conn.cursor_obj.fetchall = lambda: [("D1",), ("D2",)]
+
+    result = db.get_docket_ids_matching_filters(["D1", "D2"])
+
+    sql, params = db.conn.cursor_obj.executed[0]
+
+    assert "SELECT docket_id FROM dockets" in sql
+    assert "docket_id = ANY(%s)" in sql
+    assert params == [["D1", "D2"]]
+    assert result == ["D1", "D2"]
+
+
+def test_get_docket_ids_matching_filters_agency_filter():
+    """Agency filter adds OR ILIKE clauses and params"""
+
+    db = DBLayer(conn=_FakeConn([]))
+    db.conn.cursor_obj.fetchall = lambda: []
+
+    db.get_docket_ids_matching_filters(["D1"], agency=["CMS", "EPA"])
+
+    sql, params = db.conn.cursor_obj.executed[0]
+
+    assert sql.count("agency_id ILIKE %s") == 2
+    assert "AND (" in sql
+    assert "%CMS%" in params
+    assert "%EPA%" in params
+
+
+def test_get_docket_ids_matching_filters_docket_type_filter():
+    """Docket type adds exact match clause"""
+
+    db = DBLayer(conn=_FakeConn([]))
+    db.conn.cursor_obj.fetchall = lambda: [("D1",)]
+
+    db.get_docket_ids_matching_filters(
+        ["D1"], docket_type="Rulemaking"
+    )
+
+    sql, params = db.conn.cursor_obj.executed[0]
+
+    assert "docket_type = %s" in sql
+    assert "Rulemaking" in params
+
+
+def test_get_docket_ids_matching_filters_date_filters():
+    """Start and end date filters are included correctly"""
+
+    db = DBLayer(conn=_FakeConn([]))
+    db.conn.cursor_obj.fetchall = lambda: [("D1",)]
+
+    db.get_docket_ids_matching_filters(
+        ["D1"],
+        start_date="2024-01-01",
+        end_date="2024-12-31",
+    )
+
+    sql, params = db.conn.cursor_obj.executed[0]
+
+    assert "modify_date >= %s::TIMESTAMP" in sql
+    assert "modify_date <= %s::TIMESTAMP" in sql
+    assert "2024-01-01" in params
+    assert "2024-12-31" in params
+
+
+def test_get_docket_ids_matching_filters_combined_filters():
+    """All filters together produce full SQL and ordered params"""
+
+    db = DBLayer(conn=_FakeConn([]))
+    db.conn.cursor_obj.fetchall = lambda: [("D1",)]
+
+    db.get_docket_ids_matching_filters(
+        ["D1", "D2"],
+        agency=["CMS"],
+        docket_type="Rulemaking",
+        start_date="2024-01-01",
+    )
+
+    sql, params = db.conn.cursor_obj.executed[0]
+
+    assert "docket_id = ANY(%s)" in sql
+    assert "agency_id ILIKE %s" in sql
+    assert "docket_type = %s" in sql
+    assert "modify_date >= %s::TIMESTAMP" in sql
+
+    # ensure all values are passed
+    assert ["D1", "D2"] in params
+    assert "%CMS%" in params
+    assert "Rulemaking" in params
+    assert "2024-01-01" in params
