@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import "../styles/Login.css";
 
@@ -15,15 +16,24 @@ const Login = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 2.4, ease: "easeInOut" }}
       >
-        <h2>Welcome to Mirrulations Search! Please Login with your Google Account.</h2>
+        <p className="login-home-link">
+          <Link to="/">Home</Link>
+          {" · "}
+          <Link to="/privacy">Privacy Policy</Link>
+        </p>
+        <h2>
+          Welcome to Mirrulations Explorer. Sign in with your Google account to
+          continue.
+        </h2>
 
         <motion.button
+          type="button"
           className="google-btn"
           onClick={handleGoogleLogin}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.97 }}
         >
-          Login
+          Sign in with Google
 
           <span className="google-icon">
             <svg viewBox="0 0 48 48">

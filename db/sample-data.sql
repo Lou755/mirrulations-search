@@ -2427,3 +2427,15 @@ INSERT INTO federal_register_documents (
     39 
 );
 
+-- =========================================
+-- ADMINS
+-- =========================================
+
+INSERT INTO users (email, name)
+VALUES ('colemanb@moravian.edu', 'Benjamin Coleman')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO admins (email, name)
+VALUES ('colemanb@moravian.edu', 'Benjamin Coleman')
+ON CONFLICT DO NOTHING;
+

@@ -109,6 +109,8 @@ def test_get_db_returns_dblayer():
 # --- Fake postgres helpers ---
 
 class _FakeCursor:
+    rowcount = 0
+
     def __init__(self, rows):
         self._rows = rows
         self.executed = []
@@ -121,6 +123,9 @@ class _FakeCursor:
 
     def execute(self, sql, params=None):
         self.executed.append((sql, params))
+
+    def fetchone(self):
+        return self._rows[0] if self._rows else None
 
     def fetchall(self):
         return self._rows
@@ -987,3 +992,84 @@ def test_get_docket_ids_matching_filters_combined_filters():
     assert "%CMS%" in params
     assert "Rulemaking" in params
     assert "2024-01-01" in params
+
+
+# --- is_admin tests ---
+
+def test_is_admin_no_conn_returns_false():
+    assert DBLayer().is_admin("professor@email.com") is False
+
+def test_is_admin_returns_true_when_found():
+    db = DBLayer(conn=_FakeConn([(1,)]))
+    assert db.is_admin("professor@email.com") is True
+
+def test_is_admin_returns_false_when_not_found():
+    db = DBLayer(conn=_FakeConn([]))
+    assert db.is_admin("notadmin@email.com") is False
+
+
+# --- is_authorized_user tests ---
+
+def test_is_authorized_user_no_conn_returns_false():
+    assert DBLayer().is_authorized_user("user@email.com") is False
+
+def test_is_authorized_user_returns_true_when_found():
+    db = DBLayer(conn=_FakeConn([(1,)]))
+    assert db.is_authorized_user("user@email.com") is True
+
+def test_is_authorized_user_returns_false_when_not_found():
+    db = DBLayer(conn=_FakeConn([]))
+    assert db.is_authorized_user("unknown@email.com") is False
+
+
+# --- add_authorized_user tests ---
+
+def test_add_authorized_user_no_conn_returns_false():
+    assert DBLayer().add_authorized_user("user@email.com", "Test User") is False
+
+def test_add_authorized_user_inserts_and_returns_true():
+    db = DBLayer(conn=_FakeConn([]))
+    result = db.add_authorized_user("user@email.com", "Test User")
+    assert result is True
+    sql, params = db.conn.cursor_obj.executed[0]
+    assert "INSERT INTO authorized_users" in sql
+    assert params == ("user@email.com", "Test User")
+
+
+# --- remove_authorized_user tests ---
+
+def test_remove_authorized_user_no_conn_returns_false():
+    assert DBLayer().remove_authorized_user("user@email.com") is False
+
+def test_remove_authorized_user_returns_true_when_deleted():
+    db = DBLayer(conn=_FakeConn([]))
+    db.conn.cursor_obj.rowcount = 1
+    assert db.remove_authorized_user("user@email.com") is True
+
+def test_remove_authorized_user_returns_false_when_not_found():
+    db = DBLayer(conn=_FakeConn([]))
+    db.conn.cursor_obj.rowcount = 0
+    assert db.remove_authorized_user("nobody@email.com") is False
+
+
+# --- get_authorized_users tests ---
+
+def test_get_authorized_users_no_conn_returns_empty():
+    assert DBLayer().get_authorized_users() == []
+
+def test_get_authorized_users_returns_list():
+    rows = [
+        ("user1@email.com", "User One", "2026-01-01T00:00:00"),
+        ("user2@email.com", "User Two", "2026-01-02T00:00:00"),
+    ]
+    db = DBLayer(conn=_FakeConn(rows))
+    results = db.get_authorized_users()
+    assert len(results) == 2
+    assert results[0]["email"] == "user1@email.com"
+    assert results[0]["name"] == "User One"
+    assert results[0]["authorized_at"] == "2026-01-01T00:00:00"
+    assert results[1]["email"] == "user2@email.com"
+
+def test_get_authorized_users_empty_table_returns_empty():
+    db = DBLayer(conn=_FakeConn([]))
+    assert db.get_authorized_users() == []

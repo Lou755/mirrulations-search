@@ -66,10 +66,10 @@ echo "Loading schema..."
 psql -q -d "$DB_NAME" -f "$SCHEMA_FILE"
 
 # Verify: expect all 9 tables from schema-postgres.sql
-TABLES=$(psql -d "$DB_NAME" -tAc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('dockets','documentswithfrdoc','comments','links','cfrparts','federal_register_documents','users','collections','collection_dockets');")
+TABLES=$(psql -d "$DB_NAME" -tAc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('dockets','documentswithfrdoc','comments','links','cfrparts','federal_register_documents','users','collections','collection_dockets','admins','authorized_users');")
 echo "Created $TABLES tables."
-if [ "$TABLES" != "9" ]; then
-    echo "Error: Expected 9 tables; found $TABLES."
+if [ "$TABLES" != "11" ]; then
+    echo "Error: Expected 11 tables; found $TABLES."
     exit 1
 fi
 

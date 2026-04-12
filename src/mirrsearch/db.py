@@ -765,6 +765,68 @@ class DBLayer:  # pylint: disable=too-many-public-methods
         self.conn.commit()
         return deleted
 
+    def is_admin(self, email: str) -> bool:
+        """Return True if the given email belongs to an admin."""
+        if self.conn is None:
+            return False
+        sql = "SELECT 1 FROM admins WHERE email = %s"
+        with self.conn.cursor() as cur:
+            cur.execute(sql, (email,))
+            return cur.fetchone() is not None
+
+    def is_authorized_user(self, email: str) -> bool:
+        """Return True if the given email is in the authorized users list."""
+        if self.conn is None:
+            return False
+        sql = "SELECT 1 FROM authorized_users WHERE email = %s"
+        with self.conn.cursor() as cur:
+            cur.execute(sql, (email,))
+            return cur.fetchone() is not None
+
+    def add_authorized_user(self, email: str, name: str) -> bool:
+        """Add a user to the authorized users list. Returns True if successful."""
+        if self.conn is None:
+            return False
+        sql = """
+            INSERT INTO authorized_users (email, name)
+            VALUES (%s, %s)
+            ON CONFLICT DO NOTHING
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(sql, (email, name))
+        self.conn.commit()
+        return True
+
+    def remove_authorized_user(self, email: str) -> bool:
+        """Remove a user from the authorized users list. Returns True if deleted."""
+        if self.conn is None:
+            return False
+        sql = "DELETE FROM authorized_users WHERE email = %s"
+        with self.conn.cursor() as cur:
+            cur.execute(sql, (email,))
+            deleted = cur.rowcount > 0
+        self.conn.commit()
+        return deleted
+
+    def get_authorized_users(self) -> List[Dict[str, Any]]:
+        """Return all authorized users."""
+        if self.conn is None:
+            return []
+        sql = """
+            SELECT email, name, authorized_at
+            FROM authorized_users
+            ORDER BY authorized_at DESC
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(sql)
+            return [
+                {
+                    "email": row[0],
+                    "name": row[1],
+                    "authorized_at": row[2]
+                }
+                for row in cur.fetchall()
+            ]
 
 def _get_secrets_from_aws() -> Dict[str, str]:
     if boto3 is None:

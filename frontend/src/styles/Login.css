@@ -16,9 +16,25 @@
     border-radius: 1rem;
     text-align: center;
     box-shadow: rgba(0, 0, 0, 0.15) 1.95px 1.95px 2.6px;    width: 100%;
-    max-width: 300px;
-    max-height: 250px;
-    height: 100%;
+    max-width: 360px;
+    max-height: none;
+    height: auto;
+  }
+
+  .login-home-link {
+    margin: 0 0 1rem;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+
+  .login-home-link a {
+    color: #5a5fe6;
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .login-home-link a:hover {
+    text-decoration: underline;
   }
   
   .login-box h2 {

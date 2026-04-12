@@ -233,3 +233,27 @@ CREATE TABLE IF NOT EXISTS download_jobs (
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW() + INTERVAL '7 days'
 );
 
+-- =========================================
+-- ADMINS TABLE
+-- =========================================
+-- Stores admin users who can manage authorized users
+-- Hardcoded to professor only
+-- Must exist in users table first due to foreign key reference
+
+CREATE TABLE IF NOT EXISTS admins (
+    email VARCHAR(320) NOT NULL PRIMARY KEY REFERENCES users(email),
+    name VARCHAR(200) NOT NULL
+);
+
+-- =========================================
+-- AUTHORIZED USERS TABLE
+-- =========================================
+-- Stores users authorized to access dev.mirrulations.org
+-- Managed by admin to grant access without going through Google OAuth
+-- Users can be removed by deleting their row from this table
+
+CREATE TABLE IF NOT EXISTS authorized_users (
+    email VARCHAR(320) NOT NULL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    authorized_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
