@@ -892,7 +892,7 @@ def test_get_docket_ids_matching_filters_empty_ids_returns_empty():
     assert db.get_docket_ids_matching_filters([]) == []
 
 
-def test_get_docket_ids_matching_filters_basic_query(monkeypatch):
+def test_get_docket_ids_matching_filters_basic_query():
     """Basic query with only docket_ids returns fetched rows"""
 
     db = DBLayer(conn=_FakeConn([]))
