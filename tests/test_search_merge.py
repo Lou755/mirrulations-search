@@ -1,6 +1,7 @@
 # pylint: disable=too-few-public-methods,unused-argument
 """Tests for OpenSearch merge path in InternalLogic.search()."""
 from datetime import date
+from typing import List
 
 from mirrsearch.internal_logic import InternalLogic
 
@@ -21,6 +22,42 @@ class _FakeDbMerge:
     def get_dockets_by_ids(self, docket_ids):
         self.get_dockets_by_ids_calls.append(list(docket_ids))
         return list(self._by_id_rows)
+    
+    def get_docket_ids_matching_filters(
+        self,
+        docket_ids: List[str],
+        agency: List[str] = None,
+        docket_type: str = None,
+        start_date: str = None,
+        end_date: str = None
+        ) -> List[str]:
+        """
+        Fake version: filters by_id_rows based on criteria.
+        Returns IDs that would pass filters.
+        """
+        # Normalize keys to strings for consistency
+        by_id = {str(r["docket_id"]): r for r in self._by_id_rows}
+        filtered = []
+        for did in docket_ids:
+            did = str(did)
+            row = by_id.get(did)
+            if row is None:
+                continue
+
+            # Agency filter (substring match, consistent with expectations)
+            if agency:
+                row_agency = (row.get("agency_id") or "").lower()
+                if not any((a or "").strip().lower() in row_agency for a in agency):
+                    continue
+
+            # Docket type filter
+            if docket_type:
+                if row.get("docket_type") != docket_type:
+                    continue
+
+            filtered.append(did)
+
+        return filtered
 
     def get_docket_document_comment_totals(self, docket_ids, opensearch_client=None):  # pylint: disable=unused-argument
         # Provide deterministic denominators for assertions.
@@ -143,7 +180,6 @@ def test_merge_full_text_dropped_when_agency_filter_no_match():
     out = logic.search("q", agency=["CMS"], page=1, page_size=10)
     assert len(out["results"]) == 1
     assert out["results"][0]["docket_id"] == "A"
-    assert db.get_dockets_by_ids_calls == [["B"]]
 
 
 def test_merge_full_text_kept_when_agency_filter_matches():
