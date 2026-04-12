@@ -354,6 +354,14 @@ DOCKET_UPSERT_SQL = _upsert_sql("dockets", DOCKET_COLS, "docket_id")
 DOCUMENT_UPSERT_SQL = _upsert_sql("documentsWithFRdoc", DOC_COLS, "document_id")
 COMMENT_UPSERT_SQL = _upsert_sql("comments", COMMENT_COLS, "comment_id")
 
+# Added in newer ``schema-postgres.sql``; older DBs lack these but ``DOC_COLS`` always supplies them.
+_DOCUMENT_TABLE_OPTIONAL_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("attachments_self_link", "VARCHAR(2000)"),
+    ("attachments_related_link", "VARCHAR(2000)"),
+    ("file_formats", "JSONB"),
+    ("display_properties", "JSONB"),
+)
+
 
 def extract_self_link(data: dict) -> str | None:
     links = data.get("links")
@@ -491,6 +499,29 @@ def _require_ingest_schema(conn, args: argparse.Namespace) -> None:
             args.dbname,
         )
         sys.exit(1)
+
+
+def _ensure_documentswithfrdoc_columns(conn) -> None:
+    """Add document columns from current ``schema-postgres.sql`` if the table predates them."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'documentswithfrdoc'
+            """
+        )
+        have = {r[0].lower() for r in cur.fetchall()}
+
+    modified = False
+    with conn.cursor() as cur:
+        for col, typ in _DOCUMENT_TABLE_OPTIONAL_COLUMNS:
+            if col.lower() in have:
+                continue
+            log.info("Adding missing column documentsWithFRdoc.%s (%s).", col, typ)
+            cur.execute(f"ALTER TABLE documentsWithFRdoc ADD COLUMN {col} {typ}")
+            modified = True
+    if modified:
+        conn.commit()
 
 
 def _ensure_comments_document_fk(conn) -> None:
@@ -1000,6 +1031,7 @@ def main():
         log.error("Could not connect to database: %s", exc)
         sys.exit(1)
     _require_ingest_schema(conn, args)
+    _ensure_documentswithfrdoc_columns(conn)
     _ensure_comments_document_fk(conn)
     try:
         ok, n_doc, sk, docket_id = ingest_docket_and_documents(docket_dir, conn, dry_run=False, verbose=args.verbose)

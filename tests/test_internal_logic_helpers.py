@@ -2,7 +2,8 @@
 from mirrsearch.internal_logic import (
     _modify_date_matches_filter,
     _docket_type_matches_filter,
-    _agency_matches_filter
+    _agency_matches_filter,
+    _parallel_search_phase1_enabled,
 )
 
 # --- _modify_date_matches_filter tests ---
@@ -42,3 +43,18 @@ def test_agency_none_or_matches():
     assert _agency_matches_filter(row, ["cms"]) is True
     assert _agency_matches_filter(row, ["EPA"]) is False
     assert _agency_matches_filter(row, ["CMS", "EPA"]) is True
+
+
+def test_parallel_phase1_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("MIRRSEARCH_PHASE1_PARALLEL", raising=False)
+    assert _parallel_search_phase1_enabled() is False
+
+
+def test_parallel_phase1_enabled_explicit(monkeypatch):
+    monkeypatch.setenv("MIRRSEARCH_PHASE1_PARALLEL", "1")
+    assert _parallel_search_phase1_enabled() is True
+
+
+def test_parallel_phase1_disabled_explicit_zero(monkeypatch):
+    monkeypatch.setenv("MIRRSEARCH_PHASE1_PARALLEL", "0")
+    assert _parallel_search_phase1_enabled() is False
