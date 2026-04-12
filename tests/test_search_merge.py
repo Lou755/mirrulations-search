@@ -22,8 +22,8 @@ class _FakeDbMerge:
     def get_dockets_by_ids(self, docket_ids):
         self.get_dockets_by_ids_calls.append(list(docket_ids))
         return list(self._by_id_rows)
-    
-    def get_docket_ids_matching_filters(
+
+    def get_docket_ids_matching_filters( # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-branches,too-many-statements,too-many-locals
         self,
         docket_ids: List[str],
         agency: List[str] = None,

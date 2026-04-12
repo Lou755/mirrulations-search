@@ -861,19 +861,19 @@ def test_text_match_terms_malformed_response_returns_empty():
 def test_get_docket_ids_matching_filters():
     """Test lightweight filter query"""
     db = get_db()
-    
+
     # This test assumes you have some dockets in your test database
     # Get some real docket IDs first
     all_dockets = db.search("")
     if not all_dockets:
         pytest.skip("No dockets in test database")
-    
+
     docket_ids = [d["docket_id"] for d in all_dockets[:5]]
-    
+
     # Test with no filters - should return all
     result = db.get_docket_ids_matching_filters(docket_ids)
     assert len(result) > 0
-    
+
     # Test with agency filter
     if all_dockets[0].get("agency_id"):
         agency = [all_dockets[0]["agency_id"]]

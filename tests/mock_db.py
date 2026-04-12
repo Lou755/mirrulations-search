@@ -294,8 +294,8 @@ class MockDBLayer:  # pylint: disable=too-many-public-methods
 
     def get_dockets_by_ids(self, docket_ids: List[str]) -> List[Dict[str, Any]]:  # pylint: disable=unused-argument
         return []
-    
-    def get_docket_ids_matching_filters(
+
+    def get_docket_ids_matching_filters( # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-branches,too-many-locals,unused-argument
             self,
             docket_ids: List[str],
             agency: List[str] = None,
@@ -309,32 +309,32 @@ class MockDBLayer:  # pylint: disable=too-many-public-methods
         """
         if not docket_ids:
             return []
-        
+
         # Get all dockets to check filters
         all_dockets = self._get_all_dockets_dict()
-        
+
         filtered = []
         for did in docket_ids:
             docket = all_dockets.get(did)
             if docket is None:
                 continue
-            
+
             # Check agency filter
             if agency:
-                if not any((a or "").strip().lower() in (docket.get("agency_id") or "").lower() 
+                if not any((a or "").strip().lower() in (docket.get("agency_id") or "").lower()
                         for a in agency):
                     continue
-            
+
             # Check docket type filter
             if docket_type:
                 if docket.get("document_type", "").lower() != docket_type.lower():
                     continue
-            
+
             # Date filters - mock doesn't have dates, so skip
             # In real implementation, these would be checked
-            
+
             filtered.append(did)
-        
+
         return filtered
 
     def _get_all_dockets_dict(self) -> Dict[str, Dict]:

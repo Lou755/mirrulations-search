@@ -237,14 +237,14 @@ class InternalLogic:  # pylint: disable=too-few-public-methods
             start_date=start_date,
             end_date=end_date
         )
-        
+
         # If nothing passed filters, return early
         if not filtered_ids:
             return []
-        
+
         # Limit to top 100 to avoid fetching thousands of dockets
         filtered_ids = filtered_ids[:100]
-        
+
         # Fetch full data only for dockets that passed filters
         fetched = self.db_layer.get_dockets_by_ids(filtered_ids)
         by_id = {str(r["docket_id"]): r for r in fetched}
