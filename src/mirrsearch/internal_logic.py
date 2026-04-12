@@ -222,22 +222,41 @@ class InternalLogic:  # pylint: disable=too-few-public-methods
 
     def _get_full_text_rows(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
             self, docket_ids, os_counts_by_id,
-                            docket_type_param, agency, cfr_part_param,
-                            start_date=None, end_date=None):
+            docket_type_param, agency, cfr_part_param,
+            start_date=None, end_date=None):
         """Fetch and filter full text rows for docket IDs not in SQL results."""
         if not docket_ids:
             return []
 
-        fetched = self.db_layer.get_dockets_by_ids(docket_ids)
+        # Pre-filter docket IDs using lightweight query
+        # This filters by agency, docket_type, and dates WITHOUT fetching full data
+        filtered_ids = self.db_layer.get_docket_ids_matching_filters(
+            docket_ids,
+            agency=agency,
+            docket_type=docket_type_param,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        # If nothing passed filters, return early
+        if not filtered_ids:
+            return []
+        
+        # Limit to top 100 to avoid fetching thousands of dockets
+        filtered_ids = filtered_ids[:100]
+        
+        # Fetch full data only for dockets that passed filters
+        fetched = self.db_layer.get_dockets_by_ids(filtered_ids)
         by_id = {str(r["docket_id"]): r for r in fetched}
 
         full_text_rows = []
-        for did in docket_ids:
+        for did in filtered_ids:  # Iterate over filtered list, not original
             row = by_id.get(did)
             if row is None:
                 continue
+            # Still need to check CFR filter since we couldn't do that in SQL
             if not _row_matches_advanced_filters(row, docket_type_param, agency, cfr_part_param,
-                                                 start_date, end_date):
+                                                start_date, end_date):
                 continue
             h = os_counts_by_id.get(did, {})
             full_text_rows.append({

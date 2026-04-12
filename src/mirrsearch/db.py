@@ -253,6 +253,45 @@ class DBLayer:  # pylint: disable=too-many-public-methods
                 {**d, "cfr_refs": list(d["cfr_refs"].values())}
                 for d in dockets.values()
             ]
+        
+    def get_docket_ids_matching_filters(
+            self,
+            docket_ids: List[str],
+            agency: List[str] = None,
+            docket_type: str = None,
+            start_date: str = None,
+            end_date: str = None
+    ) -> List[str]:
+        """
+        Lightweight query: returns only docket IDs that match filter criteria.
+        Much faster than get_dockets_by_ids since it doesn't fetch full docket data.
+        """
+        if self.conn is None or not docket_ids:
+            return []
+        
+        sql = "SELECT docket_id FROM dockets WHERE docket_id = ANY(%s)"
+        params = [docket_ids]
+        
+        if agency:
+            clauses = " OR ".join("agency_id ILIKE %s" for _ in agency)
+            sql += f" AND ({clauses})"
+            params.extend(f"%{a}%" for a in agency)
+        
+        if docket_type:
+            sql += " AND docket_type = %s"
+            params.append(docket_type)
+        
+        if start_date:
+            sql += " AND modify_date >= %s::TIMESTAMP"
+            params.append(start_date)
+        
+        if end_date:
+            sql += " AND modify_date <= %s::TIMESTAMP"
+            params.append(end_date)
+        
+        with self.conn.cursor() as cur:
+            cur.execute(sql, params)
+            return [row[0] for row in cur.fetchall()]
 
     def get_agencies(self) -> List[str]:
         if self.conn is None:
