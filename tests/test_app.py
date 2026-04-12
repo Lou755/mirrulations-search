@@ -4,6 +4,7 @@ Tests for the Flask app endpoints - Header-based pagination (returns list)
 import json
 import tempfile
 import os
+from datetime import date
 from unittest.mock import patch, MagicMock
 import pytest
 from mock_db import MockDBLayer
@@ -25,6 +26,31 @@ class MockOAuthHandler:
 
     def create_jwt_token(self, user_id):  # pylint: disable=unused-argument
         return "mock-token"
+
+
+class _ReadyDownloadMockDB(MockDBLayer):
+    """Jobs can become ready; S3 URL is returned only when status is ready."""
+
+    def get_download_s3_url(self, job_id, user_email):  # pylint: disable=unused-argument
+        job = self._jobs.get(job_id)
+        if job and job.get("status") == "ready":
+            return "https://files.example.com/export.zip"
+        return None
+
+
+class _DocketsByIdMockDB(MockDBLayer):
+    """Returns one docket row so GET /dockets exercises transform paths."""
+
+    def get_dockets_by_ids(self, docket_ids):  # pylint: disable=unused-argument
+        if not docket_ids:
+            return []
+        return [
+            {
+                "docket_id": "CMS-2025-0240",
+                "modify_date": date(2024, 6, 1),
+                "cfr_refs": [{"title": "42", "cfrParts": {"413": "https://example"}}],
+            }
+        ]
 
 
 @pytest.fixture
@@ -813,3 +839,140 @@ def test_request_single_download_status_checkable(client):  # pylint: disable=re
     data = response.get_json()
     assert data["job_id"] == job_id
     assert data["docket_ids"] == ["CMS-2025-0240"]
+
+
+def test_search_cfr_part_skips_empty_title_or_part(client):  # pylint: disable=redefined-outer-name
+    """Malformed cfr_part values with empty title or part are skipped (colon present)."""
+    response = client.get(
+        '/search/?str=renal&cfr_part=42:&cfr_part=:413&cfr_part=42:413'
+    )
+    assert response.status_code == 200
+
+
+def test_download_ready_redirects(tmp_path):
+    """GET /download/<job_id> redirects when job is ready and an S3 URL exists."""
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<html></html>")
+    db_layer = _ReadyDownloadMockDB()
+    test_app = create_app(
+        dist_dir=str(dist),
+        db_layer=db_layer,
+        oauth_handler=MockOAuthHandler(),
+    )
+    test_app.config["TESTING"] = True
+    cli = test_app.test_client()
+    cli.set_cookie("jwt_token", "mock-token")
+    job_id = cli.post(
+        "/download/request",
+        json={
+            "docket_ids": ["CMS-2025-0240"],
+            "format": "raw",
+            "include_binaries": False,
+        },
+    ).get_json()["job_id"]
+    db_layer._jobs[job_id]["status"] = "ready"
+    response = cli.get(f"/download/{job_id}")
+    assert response.status_code == 302
+    assert response.location == "https://files.example.com/export.zip"
+
+
+def test_download_ready_without_s3_url_returns_404(tmp_path):
+    """Ready job with no S3 URL yields 404."""
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<html></html>")
+
+    class _NoUrlReadyMock(_ReadyDownloadMockDB):
+        def get_download_s3_url(self, job_id, user_email):  # pylint: disable=unused-argument
+            return None
+
+    db_layer = _NoUrlReadyMock()
+    test_app = create_app(
+        dist_dir=str(dist),
+        db_layer=db_layer,
+        oauth_handler=MockOAuthHandler(),
+    )
+    test_app.config["TESTING"] = True
+    cli = test_app.test_client()
+    cli.set_cookie("jwt_token", "mock-token")
+    job_id = cli.post(
+        "/download/request",
+        json={
+            "docket_ids": ["CMS-2025-0240"],
+            "format": "raw",
+            "include_binaries": False,
+        },
+    ).get_json()["job_id"]
+    db_layer._jobs[job_id]["status"] = "ready"
+    response = cli.get(f"/download/{job_id}")
+    assert response.status_code == 404
+    assert response.get_json()["error"] == "Download file not found"
+
+
+def test_get_dockets_by_ids_endpoint(tmp_path):
+    """GET /dockets serializes modify_date and cfr_refs for each requested id."""
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<html></html>")
+    test_app = create_app(
+        dist_dir=str(dist),
+        db_layer=_DocketsByIdMockDB(),
+        oauth_handler=MockOAuthHandler(),
+    )
+    test_app.config["TESTING"] = True
+    cli = test_app.test_client()
+    cli.set_cookie("jwt_token", "mock-token")
+    response = cli.get("/dockets?docket_id=CMS-2025-0240")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert len(data) == 1
+    assert data[0]["docket_id"] == "CMS-2025-0240"
+    assert data[0]["modify_date"] == "2024-06-01"
+    assert "cfrPart" in data[0]
+    assert data[0]["cfrPart"][0]["part"] == "413"
+
+
+def test_get_dockets_by_ids_empty_returns_empty_list(tmp_path):
+    """GET /dockets with no docket_id query params returns []."""
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<html></html>")
+    test_app = create_app(
+        dist_dir=str(dist),
+        db_layer=_DocketsByIdMockDB(),
+        oauth_handler=MockOAuthHandler(),
+    )
+    test_app.config["TESTING"] = True
+    cli = test_app.test_client()
+    cli.set_cookie("jwt_token", "mock-token")
+    response = cli.get("/dockets")
+    assert response.status_code == 200
+    assert response.get_json() == []
+
+
+def test_get_dockets_by_ids_requires_auth(tmp_path):
+    """GET /dockets returns 401 without JWT cookie."""
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<html></html>")
+    test_app = create_app(
+        dist_dir=str(dist),
+        db_layer=_DocketsByIdMockDB(),
+        oauth_handler=MockOAuthHandler(),
+    )
+    test_app.config["TESTING"] = True
+    response = test_app.test_client().get("/dockets?docket_id=CMS-2025-0240")
+    assert response.status_code == 401
+
+
+def test_collections_page_route_serves_index(tmp_path):
+    """GET /collections serves the SPA index from dist."""
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<html><body>collections</body></html>")
+    test_app = create_app(dist_dir=str(dist), db_layer=MockDBLayer())
+    test_app.config["TESTING"] = True
+    response = test_app.test_client().get("/collections")
+    assert response.status_code == 200
+    assert b"collections" in response.data
