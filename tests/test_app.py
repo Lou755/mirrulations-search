@@ -31,6 +31,9 @@ class MockOAuthHandler:
 class _ReadyDownloadMockDB(MockDBLayer):
     """Jobs can become ready; S3 URL is returned only when status is ready."""
 
+    def set_download_job_status(self, job_id, status):
+        self._jobs[job_id]["status"] = status
+
     def get_download_s3_url(self, job_id, user_email):  # pylint: disable=unused-argument
         job = self._jobs.get(job_id)
         if job and job.get("status") == "ready":
@@ -871,7 +874,7 @@ def test_download_ready_redirects(tmp_path):
             "include_binaries": False,
         },
     ).get_json()["job_id"]
-    db_layer._jobs[job_id]["status"] = "ready"
+    db_layer.set_download_job_status(job_id, "ready")
     response = cli.get(f"/download/{job_id}")
     assert response.status_code == 302
     assert response.location == "https://files.example.com/export.zip"
@@ -904,7 +907,7 @@ def test_download_ready_without_s3_url_returns_404(tmp_path):
             "include_binaries": False,
         },
     ).get_json()["job_id"]
-    db_layer._jobs[job_id]["status"] = "ready"
+    db_layer.set_download_job_status(job_id, "ready")
     response = cli.get(f"/download/{job_id}")
     assert response.status_code == 404
     assert response.get_json()["error"] == "Download file not found"
