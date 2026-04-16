@@ -36,8 +36,11 @@ cp db/schema-postgres.sql /tmp/schema-postgres.sql
 cp db/sample-data.sql /tmp/sample-data.sql
 chmod 644 /tmp/schema-postgres.sql /tmp/sample-data.sql
 
+echo "Dropping existing database (clean slate for test)..."
+sudo -u postgres dropdb mirrulations 2>/dev/null || true
+
 echo "Creating and loading database..."
-sudo -u postgres createdb mirrulations 2>/dev/null || true
+sudo -u postgres createdb mirrulations
 sudo -u postgres psql -d mirrulations -f /tmp/schema-postgres.sql
 sudo -u postgres psql -d mirrulations -f /tmp/sample-data.sql
 
@@ -53,6 +56,8 @@ PGPASSWORD=postgres psql -h localhost -U postgres -lqt postgres | grep -w mirrul
 
 echo "Running deployment..."
 chmod +x prod_deploy.sh
+export AWS_REGION="${AWS_REGION:-us-east-1}"
+export AWS_SECRET_NAME="${AWS_SECRET_NAME:-test/mirrulations}"
 ./prod_deploy.sh
 
 echo "Verifying service..."
