@@ -60,8 +60,10 @@ def _phase1_future_result_or_error(future):
 
 def _run_phase1_parallel_tasks(run_sql, run_os):
     executor = _get_phase1_executor()
-    sql_pair = _phase1_future_result_or_error(executor.submit(run_sql))
-    os_pair = _phase1_future_result_or_error(executor.submit(run_os))
+    sql_future = executor.submit(run_sql)
+    os_future = executor.submit(run_os)
+    sql_pair = _phase1_future_result_or_error(sql_future)
+    os_pair = _phase1_future_result_or_error(os_future)
     if sql_pair[1] is not None:
         raise sql_pair[1]
     if os_pair[1] is not None:
