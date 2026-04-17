@@ -285,3 +285,21 @@ def test_text_match_terms_no_results(db):
     """Returns empty list for nonexistent term"""
     result = db.text_match_terms(["nonexistent"])
     assert not result
+
+
+def test_get_docket_ids_matching_filters(db):
+    """Test mock filter method"""
+    docket_ids = ["CMS-2025-0240", "DEA-2024-0059", "FAKE-ID"]
+
+    # No filters - should return IDs that exist in mock data
+    result = db.get_docket_ids_matching_filters(docket_ids)
+    assert "CMS-2025-0240" in result
+
+    # Agency filter - should filter correctly
+    result = db.get_docket_ids_matching_filters(docket_ids, agency=["CMS"])
+    assert "CMS-2025-0240" in result
+    assert "DEA-2024-0059" not in result  # DEA != CMS
+
+    # Non-matching agency
+    result = db.get_docket_ids_matching_filters(docket_ids, agency=["FDA"])
+    assert len(result) == 0

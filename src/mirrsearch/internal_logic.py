@@ -1,8 +1,72 @@
 """Internal logic module for search operations with pagination"""
+import atexit
+import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
-from typing import List
+from typing import List, Tuple
 
 from mirrsearch.db import cfr_part_filter_patterns, _cfr_exact_title_part_pairs, get_db
+
+# Reused across searches: creating a ThreadPoolExecutor per request costs more than the
+# overlap win when phase 1 is only tens of milliseconds. Single-element list avoids
+# ``global`` while keeping a module-level mutable slot (name is pylint-friendly).
+_PHASE1_EXECUTOR_REF = [None]
+
+
+def _get_phase1_executor() -> ThreadPoolExecutor:
+    if _PHASE1_EXECUTOR_REF[0] is None:
+        _PHASE1_EXECUTOR_REF[0] = ThreadPoolExecutor(
+            max_workers=2,
+            thread_name_prefix="mirrsearch_phase1",
+        )
+    return _PHASE1_EXECUTOR_REF[0]
+
+
+def _shutdown_phase1_executor() -> None:
+    ex = _PHASE1_EXECUTOR_REF[0]
+    if ex is not None:
+        ex.shutdown(wait=True)
+        _PHASE1_EXECUTOR_REF[0] = None
+
+
+atexit.register(_shutdown_phase1_executor)
+
+
+def _parallel_search_phase1_enabled() -> bool:
+    """When true (env ``MIRRSEARCH_PHASE1_PARALLEL=1``), phase 1 runs Postgres and
+    OpenSearch concurrently."""
+    v = (os.getenv("MIRRSEARCH_PHASE1_PARALLEL") or "0").strip().lower()
+    return v in ("1", "true", "yes", "on")
+
+
+def _phase1_run_sql(db_layer, query, filters):
+    dtp, ag, cfp, sd, ed = filters
+    return db_layer.search(
+        query, dtp, ag, cfp, start_date=sd, end_date=ed,
+    )
+
+
+def _phase1_run_os(db_layer, term):
+    return db_layer.text_match_terms([term])
+
+
+def _phase1_future_result_or_error(future):
+    """Read completed future outcome without a broad ``except`` (uses ``Future.exception()``)."""
+    exc = future.exception()
+    if exc is not None:
+        return None, exc
+    return future.result(), None
+
+
+def _run_phase1_parallel_tasks(run_sql, run_os):
+    executor = _get_phase1_executor()
+    sql_pair = _phase1_future_result_or_error(executor.submit(run_sql))
+    os_pair = _phase1_future_result_or_error(executor.submit(run_os))
+    if sql_pair[1] is not None:
+        raise sql_pair[1]
+    if os_pair[1] is not None:
+        raise os_pair[1]
+    return sql_pair[0], os_pair[0]
 
 
 def _correlation_score(row, support_k=10):
@@ -144,6 +208,25 @@ class InternalLogic:  # pylint: disable=too-few-public-methods
         self.database = database
         self.db_layer = db_layer if db_layer is not None else get_db()
 
+    def _run_search_phase1(self, query, filters) -> Tuple[list, list]:
+        """
+        Run Postgres title/metadata search and OpenSearch term match in parallel.
+
+        ``filters`` is
+        ``(docket_type_param, agency, cfr_part_param, start_date, end_date)``.
+
+        Safe for one shared DBLayer: ``search`` uses only ``conn``; ``text_match_terms``
+        uses only OpenSearch (see ``DBLayer.text_match_terms``).
+        """
+        term = (query or "").strip()
+        dbl = self.db_layer
+        if not _parallel_search_phase1_enabled():
+            return _phase1_run_sql(dbl, query, filters), _phase1_run_os(dbl, term)
+        return _run_phase1_parallel_tasks(
+            lambda: _phase1_run_sql(dbl, query, filters),
+            lambda: _phase1_run_os(dbl, term),
+        )
+
     def search(self, query, docket_type_param=None, agency=None,  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-branches,too-many-statements,too-many-locals
                cfr_part_param=None, start_date=None, end_date=None, page=1, page_size=10,
                sort_by=None):
@@ -163,18 +246,13 @@ class InternalLogic:  # pylint: disable=too-few-public-methods
         Returns:
             dict: Paginated response with metadata
         """
-        sql_results = self.db_layer.search(
+        sql_results, os_hits = self._run_search_phase1(
             query,
-            docket_type_param,
-            agency,
-            cfr_part_param,
-            start_date=start_date,
-            end_date=end_date
+            (docket_type_param, agency, cfr_part_param, start_date, end_date),
         )
         title_rows = [{**r, "match_source": "title"} for r in sql_results]
         title_ids = {_row_docket_key(r) for r in sql_results}
 
-        os_hits = self.db_layer.text_match_terms([(query or "").strip()])
         os_counts_by_id = {str(hit["docket_id"]): hit for hit in os_hits}
 
         # Get new IDs from OpenSearch not in SQL results
@@ -222,22 +300,41 @@ class InternalLogic:  # pylint: disable=too-few-public-methods
 
     def _get_full_text_rows(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
             self, docket_ids, os_counts_by_id,
-                            docket_type_param, agency, cfr_part_param,
-                            start_date=None, end_date=None):
+            docket_type_param, agency, cfr_part_param,
+            start_date=None, end_date=None):
         """Fetch and filter full text rows for docket IDs not in SQL results."""
         if not docket_ids:
             return []
 
-        fetched = self.db_layer.get_dockets_by_ids(docket_ids)
+        # Pre-filter docket IDs using lightweight query
+        # This filters by agency, docket_type, and dates WITHOUT fetching full data
+        filtered_ids = self.db_layer.get_docket_ids_matching_filters(
+            docket_ids,
+            agency=agency,
+            docket_type=docket_type_param,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        # If nothing passed filters, return early
+        if not filtered_ids:
+            return []
+
+        # Limit to top 100 to avoid fetching thousands of dockets
+        filtered_ids = filtered_ids[:100]
+
+        # Fetch full data only for dockets that passed filters
+        fetched = self.db_layer.get_dockets_by_ids(filtered_ids)
         by_id = {str(r["docket_id"]): r for r in fetched}
 
         full_text_rows = []
-        for did in docket_ids:
+        for did in filtered_ids:  # Iterate over filtered list, not original
             row = by_id.get(did)
             if row is None:
                 continue
+            # Still need to check CFR filter since we couldn't do that in SQL
             if not _row_matches_advanced_filters(row, docket_type_param, agency, cfr_part_param,
-                                                 start_date, end_date):
+                                                start_date, end_date):
                 continue
             h = os_counts_by_id.get(did, {})
             full_text_rows.append({

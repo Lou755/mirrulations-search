@@ -254,6 +254,45 @@ class DBLayer:  # pylint: disable=too-many-public-methods
                 for d in dockets.values()
             ]
 
+    def get_docket_ids_matching_filters(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+            self,
+            docket_ids: List[str],
+            agency: List[str] = None,
+            docket_type: str = None,
+            start_date: str = None,
+            end_date: str = None
+    ) -> List[str]:
+        """
+        Lightweight query: returns only docket IDs that match filter criteria.
+        Much faster than get_dockets_by_ids since it doesn't fetch full docket data.
+        """
+        if self.conn is None or not docket_ids:
+            return []
+
+        sql = "SELECT docket_id FROM dockets WHERE docket_id = ANY(%s)"
+        params = [docket_ids]
+
+        if agency:
+            clauses = " OR ".join("agency_id ILIKE %s" for _ in agency)
+            sql += f" AND ({clauses})"
+            params.extend(f"%{a}%" for a in agency)
+
+        if docket_type:
+            sql += " AND docket_type = %s"
+            params.append(docket_type)
+
+        if start_date:
+            sql += " AND modify_date >= %s::TIMESTAMP"
+            params.append(start_date)
+
+        if end_date:
+            sql += " AND modify_date <= %s::TIMESTAMP"
+            params.append(end_date)
+
+        with self.conn.cursor() as cur:
+            cur.execute(sql, params)
+            return [row[0] for row in cur.fetchall()]
+
     def get_agencies(self) -> List[str]:
         if self.conn is None:
             return []
@@ -726,6 +765,68 @@ class DBLayer:  # pylint: disable=too-many-public-methods
         self.conn.commit()
         return deleted
 
+    def is_admin(self, email: str) -> bool:
+        """Return True if the given email belongs to an admin."""
+        if self.conn is None:
+            return False
+        sql = "SELECT 1 FROM admins WHERE email = %s"
+        with self.conn.cursor() as cur:
+            cur.execute(sql, (email,))
+            return cur.fetchone() is not None
+
+    def is_authorized_user(self, email: str) -> bool:
+        """Return True if the given email is in the authorized users list."""
+        if self.conn is None:
+            return False
+        sql = "SELECT 1 FROM authorized_users WHERE email = %s"
+        with self.conn.cursor() as cur:
+            cur.execute(sql, (email,))
+            return cur.fetchone() is not None
+
+    def add_authorized_user(self, email: str, name: str) -> bool:
+        """Add a user to the authorized users list. Returns True if successful."""
+        if self.conn is None:
+            return False
+        sql = """
+            INSERT INTO authorized_users (email, name)
+            VALUES (%s, %s)
+            ON CONFLICT DO NOTHING
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(sql, (email, name))
+        self.conn.commit()
+        return True
+
+    def remove_authorized_user(self, email: str) -> bool:
+        """Remove a user from the authorized users list. Returns True if deleted."""
+        if self.conn is None:
+            return False
+        sql = "DELETE FROM authorized_users WHERE email = %s"
+        with self.conn.cursor() as cur:
+            cur.execute(sql, (email,))
+            deleted = cur.rowcount > 0
+        self.conn.commit()
+        return deleted
+
+    def get_authorized_users(self) -> List[Dict[str, Any]]:
+        """Return all authorized users."""
+        if self.conn is None:
+            return []
+        sql = """
+            SELECT email, name, authorized_at
+            FROM authorized_users
+            ORDER BY authorized_at DESC
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(sql)
+            return [
+                {
+                    "email": row[0],
+                    "name": row[1],
+                    "authorized_at": row[2]
+                }
+                for row in cur.fetchall()
+            ]
 
 def _get_secrets_from_aws() -> Dict[str, str]:
     if boto3 is None:

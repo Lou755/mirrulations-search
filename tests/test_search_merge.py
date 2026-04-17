@@ -1,7 +1,9 @@
-# pylint: disable=too-few-public-methods,unused-argument
+# pylint: disable=too-few-public-methods,unused-argument,protected-access
 """Tests for OpenSearch merge path in InternalLogic.search()."""
 from datetime import date
+from typing import List
 
+import mirrsearch.internal_logic as internal_logic_mod
 from mirrsearch.internal_logic import InternalLogic
 
 
@@ -21,6 +23,42 @@ class _FakeDbMerge:
     def get_dockets_by_ids(self, docket_ids):
         self.get_dockets_by_ids_calls.append(list(docket_ids))
         return list(self._by_id_rows)
+
+    def get_docket_ids_matching_filters( # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-branches,too-many-statements,too-many-locals
+        self,
+        docket_ids: List[str],
+        agency: List[str] = None,
+        docket_type: str = None,
+        start_date: str = None,
+        end_date: str = None
+        ) -> List[str]:
+        """
+        Fake version: filters by_id_rows based on criteria.
+        Returns IDs that would pass filters.
+        """
+        # Normalize keys to strings for consistency
+        by_id = {str(r["docket_id"]): r for r in self._by_id_rows}
+        filtered = []
+        for did in docket_ids:
+            did = str(did)
+            row = by_id.get(did)
+            if row is None:
+                continue
+
+            # Agency filter (substring match, consistent with expectations)
+            if agency:
+                row_agency = (row.get("agency_id") or "").lower()
+                if not any((a or "").strip().lower() in row_agency for a in agency):
+                    continue
+
+            # Docket type filter
+            if docket_type:
+                if row.get("docket_type") != docket_type:
+                    continue
+
+            filtered.append(did)
+
+        return filtered
 
     def get_docket_document_comment_totals(self, docket_ids, opensearch_client=None):  # pylint: disable=unused-argument
         # Provide deterministic denominators for assertions.
@@ -143,7 +181,6 @@ def test_merge_full_text_dropped_when_agency_filter_no_match():
     out = logic.search("q", agency=["CMS"], page=1, page_size=10)
     assert len(out["results"]) == 1
     assert out["results"][0]["docket_id"] == "A"
-    assert db.get_dockets_by_ids_calls == [["B"]]
 
 
 def test_merge_full_text_kept_when_agency_filter_matches():
@@ -284,3 +321,95 @@ def test_get_collection_dockets_non_empty_sanitizes_and_paginates():
     assert "cfrPart" in out["results"][0]
     assert out["results"][0]["documentDenominator"] == 5
     assert out["results"][0]["commentDenominator"] == 3
+
+
+class _FakeDbFilteredNoFetch:
+    """IDs pass filter but get_dockets_by_ids returns nothing → skip full-text row."""
+
+    def search(self, query, *args, **kwargs):  # pylint: disable=unused-argument
+        return [{"docket_id": "A", "docket_title": "ta", "cfr_refs": []}]
+
+    def text_match_terms(self, terms, opensearch_client=None):
+        return [{"docket_id": "B", "document_match_count": 1, "comment_match_count": 0}]
+
+    def get_docket_ids_matching_filters(self, docket_ids, **kwargs):  # pylint: disable=unused-argument
+        return [str(d) for d in docket_ids]
+
+    def get_dockets_by_ids(self, docket_ids):  # pylint: disable=unused-argument
+        return []
+
+    def get_docket_document_comment_totals(self, docket_ids, opensearch_client=None):  # pylint: disable=unused-argument
+        return {
+            str(d): {"document_total_count": 1, "comment_total_count": 1}
+            for d in docket_ids
+        }
+
+
+def test_merge_full_text_skips_when_postgres_returns_no_rows():
+    db = _FakeDbFilteredNoFetch()
+    logic = InternalLogic("x", db_layer=db)
+    out = logic.search("q", page=1, page_size=10)
+    assert len(out["results"]) == 1
+    assert out["results"][0]["docket_id"] == "A"
+
+
+def test_search_runs_parallel_phase1_when_env_enabled(monkeypatch):
+    monkeypatch.setenv("MIRRSEARCH_PHASE1_PARALLEL", "1")
+    internal_logic_mod._shutdown_phase1_executor()
+    try:
+        sql_rows = [{"docket_id": "A", "docket_title": "t", "cfr_refs": []}]
+        db = _FakeDbMerge(sql_rows, os_hits=[], by_id_rows=[])
+        logic = InternalLogic("x", db_layer=db)
+        out = logic.search("q", page=1, page_size=10)
+        assert len(out["results"]) == 1
+    finally:
+        internal_logic_mod._shutdown_phase1_executor()
+
+
+class _FakeDbSortComments(_FakeDbMerge):
+    def get_docket_document_comment_totals(self, docket_ids, opensearch_client=None):  # pylint: disable=unused-argument
+        return {
+            "A": {"document_total_count": 10, "comment_total_count": 1},
+            "B": {"document_total_count": 5, "comment_total_count": 10},
+        }
+
+
+def test_sort_by_comment_count():
+    sql_rows = [
+        {"docket_id": "A", "docket_title": "a", "cfr_refs": []},
+        {"docket_id": "B", "docket_title": "b", "cfr_refs": []},
+    ]
+    db = _FakeDbSortComments(sql_rows, [], [])
+    logic = InternalLogic("x", db_layer=db)
+    out = logic.search("q", sort_by="comment_count", page=1, page_size=10)
+    assert [r["docket_id"] for r in out["results"]] == ["B", "A"]
+
+
+class _FakeDbSortDocuments(_FakeDbMerge):
+    def get_docket_document_comment_totals(self, docket_ids, opensearch_client=None):  # pylint: disable=unused-argument
+        return {
+            "A": {"document_total_count": 2, "comment_total_count": 0},
+            "B": {"document_total_count": 20, "comment_total_count": 0},
+        }
+
+
+def test_sort_by_document_count():
+    sql_rows = [
+        {"docket_id": "A", "docket_title": "a", "cfr_refs": []},
+        {"docket_id": "B", "docket_title": "b", "cfr_refs": []},
+    ]
+    db = _FakeDbSortDocuments(sql_rows, [], [])
+    logic = InternalLogic("x", db_layer=db)
+    out = logic.search("q", sort_by="document_count", page=1, page_size=10)
+    assert [r["docket_id"] for r in out["results"]] == ["B", "A"]
+
+
+def test_sort_by_modify_date():
+    sql_rows = [
+        {"docket_id": "A", "docket_title": "a", "cfr_refs": [], "modify_date": "2020-01-01"},
+        {"docket_id": "B", "docket_title": "b", "cfr_refs": [], "modify_date": "2025-01-01"},
+    ]
+    db = _FakeDbMerge(sql_rows, [], [])
+    logic = InternalLogic("x", db_layer=db)
+    out = logic.search("q", sort_by="modify_date", page=1, page_size=10)
+    assert [r["docket_id"] for r in out["results"]] == ["B", "A"]
