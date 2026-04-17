@@ -33,10 +33,9 @@ atexit.register(_shutdown_phase1_executor)
 
 
 def _parallel_search_phase1_enabled() -> bool:
-    """When true (env ``MIRRSEARCH_PHASE1_PARALLEL=1``), phase 1 runs Postgres and
-    OpenSearch concurrently."""
-    v = (os.getenv("MIRRSEARCH_PHASE1_PARALLEL") or "0").strip().lower()
-    return v in ("1", "true", "yes", "on")
+    """Parallel is the default. Set ``MIRRSEARCH_PHASE1_SEQUENTIAL=1`` to disable."""
+    v = (os.getenv("MIRRSEARCH_PHASE1_SEQUENTIAL") or "0").strip().lower()
+    return v not in ("1", "true", "yes", "on")
 
 
 def _phase1_run_sql(db_layer, query, filters):
